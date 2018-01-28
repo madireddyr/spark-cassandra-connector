@@ -86,7 +86,7 @@ trait StructDef extends Serializable {
 
 sealed trait ColumnRole
 case object PartitionKeyColumn extends ColumnRole
-case class ClusteringColumn(index: Int) extends ColumnRole
+case class ClusteringColumn(index: Int, sortAsc: Boolean = true) extends ColumnRole
 case object StaticColumn extends ColumnRole
 case object RegularColumn extends ColumnRole
 
@@ -105,7 +105,7 @@ case class ColumnDef(
   def isCounterColumn = columnType == CounterType
 
   def componentIndex = columnRole match {
-    case ClusteringColumn(i) => Some(i)
+    case ClusteringColumn(i, _) => Some(i)
     case _ => None
   }
 
@@ -192,11 +192,18 @@ case class TableDef(
     val clusteringColumnNames = clusteringColumns.map(_.columnName).map(quote)
     val primaryKeyClause = (partitionKeyClause +: clusteringColumnNames).mkString(", ")
     val addIfNotExists = if (ifNotExists) "IF NOT EXISTS " else ""
+    val clusterOrder = if (clusteringColumns.isEmpty) {
+      ""
+      } else {
+        " WITH CLUSTERING ORDER BY (" +
+        clusteringColumns.map(x=> quote(x.columnName) + 
+            (if (x.asInstanceOf[ClusteringColumn].sortAsc) " ASC" else " DESC")).mkString(", ") + ")"
+      }
 
     s"""CREATE TABLE $addIfNotExists${quote(keyspaceName)}.${quote(tableName)} (
        |  $columnList,
        |  PRIMARY KEY ($primaryKeyClause)
-       |)""".stripMargin
+       |)$clusterOrder""".stripMargin
   }
 
   type ValueRepr = CassandraRow
