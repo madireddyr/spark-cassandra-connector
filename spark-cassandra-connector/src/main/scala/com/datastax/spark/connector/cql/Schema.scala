@@ -140,7 +140,8 @@ case class TableDef(
     clusteringColumns: Seq[ColumnDef],
     regularColumns: Seq[ColumnDef],
     indexes: Seq[IndexDef] = Seq.empty,
-    isView: Boolean = false) extends StructDef {
+    isView: Boolean = false,
+    ifNotExists: Boolean = false) extends StructDef {
 
   require(partitionKey.forall(_.isPartitionKeyColumn), "All partition key columns must have role PartitionKeyColumn")
   require(clusteringColumns.forall(_.isClusteringColumn), "All clustering columns must have role ClusteringColumn")
@@ -190,8 +191,9 @@ case class TableDef(
     val partitionKeyClause = partitionKey.map(_.columnName).map(quote).mkString("(", ", ", ")")
     val clusteringColumnNames = clusteringColumns.map(_.columnName).map(quote)
     val primaryKeyClause = (partitionKeyClause +: clusteringColumnNames).mkString(", ")
+    val addIfNotExists = if (ifNotExists) "IF NOT EXISTS " else ""
 
-    s"""CREATE TABLE ${quote(keyspaceName)}.${quote(tableName)} (
+    s"""CREATE TABLE $addIfNotExists${quote(keyspaceName)}.${quote(tableName)} (
        |  $columnList,
        |  PRIMARY KEY ($primaryKeyClause)
        |)""".stripMargin
