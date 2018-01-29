@@ -109,6 +109,11 @@ case class ColumnDef(
     case _ => None
   }
 
+  def sortingDirection = columnRole match {
+    case ClusteringColumn(_, v) => v
+    case _ => true
+  }
+
   def cql = {
     s"${quote(columnName)} ${columnType.cqlTypeName}"
   }
@@ -192,12 +197,13 @@ case class TableDef(
     val clusteringColumnNames = clusteringColumns.map(_.columnName).map(quote)
     val primaryKeyClause = (partitionKeyClause +: clusteringColumnNames).mkString(", ")
     val addIfNotExists = if (ifNotExists) "IF NOT EXISTS " else ""
-    val clusterOrder = if (clusteringColumns.isEmpty) {
+    val clusterOrder = if (clusteringColumns.isEmpty ||
+        clusteringColumns.forall(_.sortingDirection)) {
       ""
       } else {
         " WITH CLUSTERING ORDER BY (" +
         clusteringColumns.map(x=> quote(x.columnName) + 
-            (if (x.asInstanceOf[ClusteringColumn].sortAsc) " ASC" else " DESC")).mkString(", ") + ")"
+            (if (x.sortingDirection) " ASC" else " DESC")).mkString(", ") + ")"
       }
 
     s"""CREATE TABLE $addIfNotExists${quote(keyspaceName)}.${quote(tableName)} (
