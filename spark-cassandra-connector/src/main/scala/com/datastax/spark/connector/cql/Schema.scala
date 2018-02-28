@@ -108,6 +108,11 @@ case class ColumnDef(
     case ClusteringColumn(i, _) => Some(i)
     case _ => None
   }
+  
+  def sortingDirection = columnRole match {
+    case ClusteringColumn(_, v) => v
+    case _ => true
+  }
 
   def sortingDirection = columnRole match {
     case ClusteringColumn(_, v) => v
